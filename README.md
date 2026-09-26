@@ -19,9 +19,12 @@ which the game writes on `/reload` and logout.
   events, and turns on the game's own chat and combat logs (with Advanced Combat
   Logging) at login.
 
-Install by putting (or symlinking) this repository into
-`_classic_beta_/Interface/AddOns/armory`; the folder must be called `armory`.
-Adding or renaming files needs a full client restart, not just `/reload`.
+The easiest way to install it is from the [Forever Memory](https://github.com/stockime/forever-memory-app)
+app, which ships with it (Settings → Addon → Install), and which turns the
+recordings into an armory, a map, a journal and a diary.
 
-The companion tools (a sync that publishes the snapshot to a website and
-archives the recordings to git) live in stru.ci's `wow/` project.
+To install it by hand, download `armory-addon.zip` from the
+[latest release](https://github.com/stockime/forever-memory-app/releases/latest)
+and unpack it into `_classic_beta_/Interface/AddOns/`, so the files end up in
+`Interface/AddOns/armory` (the folder must be called `armory`). Adding or
+renaming files needs a full client restart, not just `/reload`.

@@ -1,4 +1,4 @@
--- armory: snapshots each character into armory_db for wow.stru.ci.
+-- armory: snapshots each character into armory_db for Forever Memory.
 -- The game writes SavedVariables on /reload and logout; a watcher outside the
 -- game uploads the file. Nothing here talks to the network.
 

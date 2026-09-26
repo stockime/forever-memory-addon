@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: armory
-## Notes: Snapshots gear, stats, talents and Legacy perks for wow.stru.ci, and records everything else for the private archive
+## Notes: Records your characters for Forever Memory: gear, stats, talents, Legacy perks and everything they live through
 ## Author: struci
-## Version: 0.1.0
+## Version: 0.2.0
 ## SavedVariables: armory_db, armory_memory
 
 memory.lua
