@@ -13,7 +13,8 @@ which the game writes on `/reload` and logout.
   levels, quests with their text and chosen rewards, gossip, zones, map
   position while moving, deaths, group changes and loot/skill/rep messages. It
   remembers when each item was first seen on the character, keeps 30 days of
-  events, and turns on the game's own chat and combat logs at login.
+  events, and turns on the game's own chat and combat logs (with Advanced Combat
+  Logging) at login.
 
 Install by putting (or symlinking) this repository into
 `_classic_beta_/Interface/AddOns/armory`; the folder must be called `armory`.

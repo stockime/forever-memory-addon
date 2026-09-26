@@ -164,6 +164,8 @@ function handlers.PLAYER_LOGIN()
 	if mem.nativeLogs ~= false then -- the plan's "never forget the native logs"
 		if LoggingChat and not LoggingChat() then LoggingChat(true) end
 		if LoggingCombat and not LoggingCombat() then LoggingCombat(true) end
+		-- Positions and full unit info in combat log lines (Options > Network).
+		if C_CVar and C_CVar.GetCVar("advancedCombatLogging") ~= "1" then C_CVar.SetCVar("advancedCombatLogging", "1") end
 	end
 
 	money, xp, level = GetMoney(), UnitXP("player"), UnitLevel("player")
