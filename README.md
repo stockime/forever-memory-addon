@@ -12,7 +12,8 @@ which the game writes on `/reload` and logout.
   (tagged loot, vendor, mail, trade, auction, bank or quest), money, XP and
   levels, quests with their text and chosen rewards, gossip, zones, map
   position while moving, deaths, group changes and loot/skill/rep messages. It
-  keeps the quest log with objective progress and a catalogue of every item
+  keeps the quest log with objective progress, the players you meet (full
+  name, class, race, level, guild) and a catalogue of every item
   seen (name, icon, quality), remembers when each item was first seen on the
   character, keeps 30 days of
   events, and turns on the game's own chat and combat logs (with Advanced Combat

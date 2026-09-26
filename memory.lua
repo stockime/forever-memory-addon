@@ -171,6 +171,7 @@ function handlers.PLAYER_LOGIN()
 	mem.quests = mem.quests or {}
 	mem.gossip = mem.gossip or {}
 	mem.items = mem.items or {}
+	mem.players = mem.players or {}
 	local guid = UnitGUID("player")
 	mem.characters[guid] = mem.characters[guid] or { seen = {}, log = {} }
 	char = mem.characters[guid]
@@ -294,6 +295,30 @@ function handlers.QUEST_LOG_UPDATE()
 	C_Timer.After(1, snapshotQuestLog)
 end
 
+-- Everyone met: full name (first + surname), class, race, level and guild,
+-- keyed by the same GUID the combat log uses. Updated at most once a minute.
+local function notePlayer(unit)
+	if not mem or not UnitExists(unit) or not UnitIsPlayer(unit) or UnitIsUnit(unit, "player") then return end
+	local guid = UnitGUID(unit)
+	if not guid then return end
+	local p = mem.players[guid]
+	if p and now() - (p.last or 0) < 60 then return end
+	local name, surname = UnitName(unit)
+	local _, classFile = UnitClass(unit)
+	local race = UnitRace(unit)
+	local guild = GetGuildInfo(unit)
+	p = p or { first = now(), seen = 0 }
+	p.name, p.surname, p.class, p.race = name, surname, classFile, race
+	p.level = math.max(p.level or 0, UnitLevel(unit) or 0)
+	p.guild = guild or p.guild
+	p.faction = UnitFactionGroup(unit)
+	p.last, p.seen = now(), (p.seen or 0) + 1
+	mem.players[guid] = p
+end
+function handlers.UPDATE_MOUSEOVER_UNIT() notePlayer("mouseover") end
+function handlers.PLAYER_TARGET_CHANGED() notePlayer("target") end
+function handlers.NAME_PLATE_UNIT_ADDED(unit) notePlayer(unit) end
+
 function handlers.GOSSIP_SHOW()
 	local id, name = npcID()
 	local text = C_GossipInfo.GetText()
@@ -333,6 +358,7 @@ function handlers.GROUP_ROSTER_UPDATE()
 	local members = {}
 	for i = 1, GetNumGroupMembers() do
 		local unit = IsInRaid() and ("raid" .. i) or (i == 1 and "player" or "party" .. (i - 1))
+		notePlayer(unit)
 		members[#members + 1] = GetUnitName(unit, true)
 	end
 	log("group", { members = members })
