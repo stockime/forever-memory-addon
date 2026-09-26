@@ -320,6 +320,6 @@ if C_GossipInfo and C_GossipInfo.SelectOption then
 end
 if C_GossipInfo and C_GossipInfo.SelectOptionByIndex then
 	hooksecurefunc(C_GossipInfo, "SelectOptionByIndex", function(index)
-		pickedGossip(function(i, o) return i == index or o.orderIndex == index end)
+		pickedGossip(function(_, o) return o.orderIndex == index end)
 	end)
 end
