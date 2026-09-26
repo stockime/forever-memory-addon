@@ -94,6 +94,7 @@ local function stats()
 				statFrame.Label:SetText("")
 				statFrame.Value:SetText("")
 				statFrame.numericValue = nil
+				statFrame.tooltip, statFrame.tooltip2, statFrame.tooltip3, statFrame.tooltip4 = nil, nil, nil, nil
 				if pcall(info.updateFunc, statFrame, "player") and (statFrame.Value:GetText() or "") ~= ""
 					and (not stat.hideAt or stat.hideAt ~= statFrame.numericValue) then
 					rows[#rows + 1] = {
@@ -101,6 +102,8 @@ local function stats()
 						label = (statFrame.Label:GetText() or ""):gsub(":$", ""),
 						value = statFrame.Value:GetText(),
 						number = statFrame.numericValue,
+						-- what the character sheet shows on hover
+						tooltip = { statFrame.tooltip, statFrame.tooltip2, statFrame.tooltip3, statFrame.tooltip4 },
 					}
 				end
 				statFrame:Hide() -- some updateFuncs Show() the frame
