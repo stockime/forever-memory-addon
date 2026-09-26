@@ -53,7 +53,24 @@ function ns.firstSeen(link)
 	return key and char and char.seen[key]
 end
 
+-- noteItem keeps an account-wide catalogue of every item seen, so the
+-- archive can show names, icons and quality for any item ID.
+local function noteItem(link)
+	if not link or not mem then return end
+	local id = tonumber(link:match("item:(%d+)"))
+	if not id or (mem.items[id] and mem.items[id].icon) then return end
+	local _, _, _, equipLoc, icon, classID, subclassID = C_Item.GetItemInfoInstant(id)
+	local name = link:match("%[(.-)%]")
+	mem.items[id] = {
+		name = name ~= "" and name or (mem.items[id] and mem.items[id].name) or nil,
+		icon = icon, q = tonumber(link:match("|cnIQ(%d)")), slot = equipLoc ~= "" and equipLoc or nil,
+		class = classID, subclass = subclassID,
+	}
+end
+ns.noteItem = noteItem
+
 local function see(link)
+	noteItem(link)
 	local key = itemKey(link)
 	if key and not char.seen[key] then char.seen[key] = now() end
 	return key
@@ -153,6 +170,7 @@ function handlers.PLAYER_LOGIN()
 	mem.characters = mem.characters or {}
 	mem.quests = mem.quests or {}
 	mem.gossip = mem.gossip or {}
+	mem.items = mem.items or {}
 	local guid = UnitGUID("player")
 	mem.characters[guid] = mem.characters[guid] or { seen = {}, log = {} }
 	char = mem.characters[guid]
@@ -230,12 +248,51 @@ function handlers.QUEST_COMPLETE()
 	local id = questText("reward", GetRewardText())
 	if id then
 		local choices = {}
-		for i = 1, GetNumQuestChoices() or 0 do choices[i] = GetQuestItemLink("choice", i) end
+		for i = 1, GetNumQuestChoices() or 0 do
+			choices[i] = GetQuestItemLink("choice", i)
+			noteItem(choices[i])
+		end
 		mem.quests[id].choices = choices
 	end
 	setContext("quest", true)
 end
 function handlers.QUEST_FINISHED() setContext("quest", false) end
+
+-- The quest log as it stands, with objective progress; each objective that
+-- moves forward is also logged, so the archive can show how a quest went.
+local lastObjectives = {}
+local questLogPending = false
+local function snapshotQuestLog()
+	questLogPending = false
+	local list = {}
+	for i = 1, C_QuestLog.GetNumQuestLogEntries() do
+		local info = C_QuestLog.GetInfo(i)
+		if info and not info.isHeader and not info.isHidden and info.questID and info.questID > 0 then
+			local id = info.questID
+			local objectives = {}
+			for j, o in ipairs(C_QuestLog.GetQuestObjectives(id) or {}) do
+				objectives[j] = { text = o.text, have = o.numFulfilled, need = o.numRequired, done = o.finished }
+				local key = id .. ":" .. j
+				local before = lastObjectives[key]
+				if before and o.numFulfilled and o.numFulfilled > before then
+					log("objective", { id = id, i = j, have = o.numFulfilled, need = o.numRequired, text = o.text })
+				end
+				lastObjectives[key] = o.numFulfilled
+			end
+			local complete = C_QuestLog.IsComplete and C_QuestLog.IsComplete(id)
+			list[#list + 1] = { id = id, title = info.title, level = info.level, group = info.suggestedGroup,
+				complete = complete or nil, objectives = objectives }
+			if not mem.quests[id] then mem.quests[id] = { title = info.title, seen = now() } end
+			mem.quests[id].level = info.level
+		end
+	end
+	char.questlog = list
+end
+function handlers.QUEST_LOG_UPDATE()
+	if questLogPending then return end
+	questLogPending = true
+	C_Timer.After(1, snapshotQuestLog)
+end
 
 function handlers.GOSSIP_SHOW()
 	local id, name = npcID()
