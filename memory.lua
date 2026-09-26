@@ -160,7 +160,7 @@ local function samplePosition()
 end
 
 local money, xp, level
-local exploredSoon, accountSoon -- defined with the map exploration and collections below
+local exploredSoon, accountSoon, reputationSoon -- defined with the map exploration, collections and reputation below
 local f = CreateFrame("Frame")
 local handlers = {}
 
@@ -197,6 +197,7 @@ end
 function handlers.PLAYER_ENTERING_WORLD()
 	exploredSoon()
 	accountSoon()
+	reputationSoon()
 	baselineUntil = GetTime() + 5
 	scanInventory()
 	C_Timer.After(5, scanInventory)
@@ -371,6 +372,84 @@ end
 function handlers.NEW_MOUNT_ADDED() accountSoon() end
 function handlers.NEW_PET_ADDED() accountSoon() end
 function handlers.COMPANION_LEARNED() accountSoon() end
+
+-- Where the character stands with each faction, as the reputation frame
+-- lists it: the header it sits under, the standing (1 Hated .. 8 Exalted),
+-- the value with the bounds of that standing, and at war or not. Each change
+-- is also logged, and when each standing was first reached is remembered.
+-- Collapsed headers hide their factions from the list; those are read by ID.
+local function factionData(index, id)
+	if C_Reputation and C_Reputation.GetFactionDataByIndex then
+		local ok, d
+		if id then ok, d = pcall(C_Reputation.GetFactionDataByID, id) else ok, d = pcall(C_Reputation.GetFactionDataByIndex, index) end
+		if not ok or not d or not d.name then return nil end
+		return { id = d.factionID, name = d.name, reaction = d.reaction, min = d.currentReactionThreshold,
+			max = d.nextReactionThreshold, value = d.currentStanding, war = d.atWarWith or nil,
+			header = d.isHeader, headerRep = d.isHeaderWithRep, child = d.isChild }
+	end
+	local info = id and GetFactionInfoByID or GetFactionInfo
+	if not info then return nil end
+	local ok, name, _, reaction, min, max, value, war, _, header, _, hasRep, _, child, factionID = pcall(info, id or index)
+	if not ok or not name then return nil end
+	return { id = factionID, name = name, reaction = reaction, min = min, max = max, value = value,
+		war = war or nil, header = header, headerRep = header and hasRep, child = child }
+end
+
+local function numFactions()
+	if C_Reputation and C_Reputation.GetNumFactions then return C_Reputation.GetNumFactions() or 0 end
+	return GetNumFactions and GetNumFactions() or 0
+end
+
+local reputationPending = false
+local function snapshotReputation()
+	reputationPending = false
+	local before = {}
+	for _, r in ipairs(char.reputation or {}) do if r.id then before[r.id] = r end end
+	local list, seen, group, sub = {}, {}, nil, nil
+	for i = 1, numFactions() do
+		local d = factionData(i)
+		if d then
+			if d.header and not d.child then group, sub = d.name, nil
+			elseif d.header then sub = d.name end
+			if d.id and (not d.header or d.headerRep) and not seen[d.id] then
+				d.group = group
+				d.sub = (d.child or (d.header and d.headerRep)) and sub or nil
+				list[#list + 1] = d
+				seen[d.id] = true
+			end
+		end
+	end
+	for id, r in pairs(before) do
+		if not seen[id] then
+			local d = factionData(nil, id)
+			if d then
+				d.group, d.sub = r.group, r.sub
+				list[#list + 1] = d
+				seen[id] = true
+			end
+		end
+	end
+	if #list == 0 then return end -- not loaded yet
+	local first = next(before) == nil
+	for _, d in ipairs(list) do
+		local old = before[d.id]
+		d.header, d.headerRep, d.child = nil, nil, nil
+		d.since = old and old.since or now()
+		d.reached = old and old.reached or {}
+		if d.reaction and not d.reached[d.reaction] then d.reached[d.reaction] = now() end
+		if not first and (not old or old.value ~= d.value) then
+			log("rep", { id = d.id, faction = d.name, d = old and d.value - (old.value or 0) or nil, value = d.value,
+				standing = d.reaction, min = d.min, max = d.max, new = not old or nil })
+		end
+	end
+	char.reputation = list
+end
+function reputationSoon()
+	if reputationPending then return end
+	reputationPending = true
+	C_Timer.After(1, snapshotReputation)
+end
+function handlers.UPDATE_FACTION() reputationSoon() end
 
 -- Everyone met: full name (first + surname), class, race, level and guild,
 -- keyed by the same GUID the combat log uses. Updated at most once a minute.
