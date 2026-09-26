@@ -160,6 +160,7 @@ local function samplePosition()
 end
 
 local money, xp, level
+local exploredSoon -- defined with the map exploration below
 local f = CreateFrame("Frame")
 local handlers = {}
 
@@ -194,6 +195,7 @@ function handlers.PLAYER_LOGIN()
 end
 
 function handlers.PLAYER_ENTERING_WORLD()
+	exploredSoon()
 	baselineUntil = GetTime() + 5
 	scanInventory()
 	C_Timer.After(5, scanInventory)
@@ -293,6 +295,40 @@ function handlers.QUEST_LOG_UPDATE()
 	if questLogPending then return end
 	questLogPending = true
 	C_Timer.After(1, snapshotQuestLog)
+end
+
+-- The parts of each Classic zone map this character has explored, as the
+-- map's own overlay textures (file IDs, size and offset on the map canvas),
+-- so the archive can reveal the map the way the game does.
+local exploredPending = false
+local function snapshotExplored()
+	exploredPending = false
+	if not (C_MapExplorationInfo and C_MapExplorationInfo.GetExploredMapTextures) then return end
+	local explored = {}
+	for mapID = 1411, 1458 do
+		local list = {}
+		for _, t in ipairs(C_MapExplorationInfo.GetExploredMapTextures(mapID) or {}) do
+			if not t.isShownByMouseOver and t.fileDataIDs and #t.fileDataIDs > 0 then
+				list[#list + 1] = { w = t.textureWidth, h = t.textureHeight, x = t.offsetX, y = t.offsetY,
+					across = t.numTexturesWide, down = t.numTexturesTall, files = t.fileDataIDs }
+			end
+		end
+		if #list > 0 then
+			local layer = C_Map.GetMapArtLayers and C_Map.GetMapArtLayers(mapID)
+			layer = layer and layer[1]
+			explored[mapID] = { width = layer and layer.layerWidth, height = layer and layer.layerHeight, overlays = list }
+		end
+	end
+	char.explored = explored
+end
+function exploredSoon()
+	if exploredPending then return end
+	exploredPending = true
+	C_Timer.After(2, snapshotExplored)
+end
+function handlers.MAP_EXPLORATION_UPDATED()
+	log("explore", { zone = GetRealZoneText(), sub = GetSubZoneText(), map = C_Map.GetBestMapForUnit("player") })
+	exploredSoon()
 end
 
 -- Everyone met: full name (first + surname), class, race, level and guild,
