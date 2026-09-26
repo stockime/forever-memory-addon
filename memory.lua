@@ -160,7 +160,7 @@ local function samplePosition()
 end
 
 local money, xp, level
-local exploredSoon -- defined with the map exploration below
+local exploredSoon, accountSoon -- defined with the map exploration and collections below
 local f = CreateFrame("Frame")
 local handlers = {}
 
@@ -196,6 +196,7 @@ end
 
 function handlers.PLAYER_ENTERING_WORLD()
 	exploredSoon()
+	accountSoon()
 	baselineUntil = GetTime() + 5
 	scanInventory()
 	C_Timer.After(5, scanInventory)
@@ -330,6 +331,46 @@ function handlers.MAP_EXPLORATION_UPDATED()
 	log("explore", { zone = GetRealZoneText(), sub = GetSubZoneText(), map = C_Map.GetBestMapForUnit("player") })
 	exploredSoon()
 end
+
+-- Account-wide collections (mounts and companions): shared by every
+-- character on the account, each remembered with when it first showed up
+-- and who was logged in, so a character can speak of the others' deeds.
+local function snapshotAccount()
+	mem.account = mem.account or {}
+	local acc, who = mem.account, UnitGUID("player")
+	local function note(kind, key, info)
+		acc[kind] = acc[kind] or {}
+		local e = acc[kind][key]
+		if not e then
+			e = { first = now(), by = who }
+			acc[kind][key] = e
+		end
+		for k, v in pairs(info) do e[k] = v end
+	end
+	if C_MountJournal and C_MountJournal.GetMountIDs then
+		for _, id in ipairs(C_MountJournal.GetMountIDs() or {}) do
+			local name, spellID, icon, _, _, _, _, _, _, _, isCollected = C_MountJournal.GetMountInfoByID(id)
+			if isCollected and name then note("mounts", id, { name = name, icon = icon, spell = spellID }) end
+		end
+	end
+	if C_PetJournal and C_PetJournal.GetOwnedPetIDs and C_PetJournal.GetPetInfoTableByPetID then
+		for _, petID in ipairs(C_PetJournal.GetOwnedPetIDs() or {}) do
+			local ok, p = pcall(C_PetJournal.GetPetInfoTableByPetID, petID)
+			if ok and p and p.speciesID then
+				note("pets", p.speciesID, { name = p.customName or p.name, species = p.name, icon = p.icon })
+			end
+		end
+	end
+end
+local accountPending = false
+function accountSoon()
+	if accountPending then return end
+	accountPending = true
+	C_Timer.After(3, function() accountPending = false; snapshotAccount() end)
+end
+function handlers.NEW_MOUNT_ADDED() accountSoon() end
+function handlers.NEW_PET_ADDED() accountSoon() end
+function handlers.COMPANION_LEARNED() accountSoon() end
 
 -- Everyone met: full name (first + surname), class, race, level and guild,
 -- keyed by the same GUID the combat log uses. Updated at most once a minute.

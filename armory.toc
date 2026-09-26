@@ -2,7 +2,7 @@
 ## Title: armory
 ## Notes: Records your characters for Forever Memory: gear, stats, talents, Legacy perks and everything they live through
 ## Author: struci
-## Version: 0.2.1
+## Version: 0.3.0
 ## SavedVariables: armory_db, armory_memory
 
 memory.lua
