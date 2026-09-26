@@ -62,6 +62,7 @@ end
 -- Inventory: bags and worn items are scanned; the bank is remembered from
 -- the last time it was open, so moving things into it isn't a loss.
 local counts, links = nil, {}
+local baselineUntil = 0 -- scans before this only set the baseline: bags load after login
 local bankCounts = {}
 
 local function scanContainer(bag, into)
@@ -98,7 +99,7 @@ local function scanInventory()
 		end
 	end
 	for key, n in pairs(bankCounts) do cur[key] = (cur[key] or 0) + n end
-	if counts then
+	if counts and GetTime() >= baselineUntil then
 		local where = context()
 		for key, n in pairs(cur) do
 			local d = n - (counts[key] or 0)
@@ -173,7 +174,11 @@ function handlers.PLAYER_LOGIN()
 	C_Timer.NewTicker(POSITION_EVERY, samplePosition)
 end
 
-function handlers.PLAYER_ENTERING_WORLD() scanInventory() end
+function handlers.PLAYER_ENTERING_WORLD()
+	baselineUntil = GetTime() + 5
+	scanInventory()
+	C_Timer.After(5, scanInventory)
+end
 function handlers.BAG_UPDATE_DELAYED() scanInventory() end
 function handlers.PLAYER_LOGOUT() log("logout", { money = GetMoney(), zone = GetRealZoneText() }) end
 
@@ -209,7 +214,8 @@ function handlers.QUEST_ACCEPTED(questID)
 	log("quest", { act = "accept", id = questID, title = C_QuestLog and C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questID) })
 end
 function handlers.QUEST_TURNED_IN(questID, xpReward, moneyReward)
-	log("quest", { act = "turnin", id = questID, xp = xpReward, money = moneyReward, choice = ns.questChoice })
+	local q = mem.quests[questID]
+	log("quest", { act = "turnin", id = questID, title = q and q.title, xp = xpReward, money = moneyReward, choice = ns.questChoice })
 	ns.questChoice = nil
 end
 function handlers.QUEST_REMOVED(questID) log("quest", { act = "remove", id = questID }) end
@@ -297,10 +303,23 @@ if GetQuestReward then
 		ns.questChoice = choice and choice > 0 and GetQuestItemLink("choice", choice) or nil
 	end)
 end
+-- The gossip frame picks options by ID or by index, depending on the button.
+local function pickedGossip(match)
+	for i, o in ipairs(C_GossipInfo.GetOptions() or {}) do
+		if match(i, o) then
+			local id, name = npcID()
+			log("gossip_pick", { npc = id, name = name, option = o.name })
+			return
+		end
+	end
+end
 if C_GossipInfo and C_GossipInfo.SelectOption then
 	hooksecurefunc(C_GossipInfo, "SelectOption", function(optionID)
-		for _, o in ipairs(C_GossipInfo.GetOptions() or {}) do
-			if o.gossipOptionID == optionID then log("gossip_pick", { option = o.name }) end
-		end
+		pickedGossip(function(_, o) return o.gossipOptionID == optionID end)
+	end)
+end
+if C_GossipInfo and C_GossipInfo.SelectOptionByIndex then
+	hooksecurefunc(C_GossipInfo, "SelectOptionByIndex", function(index)
+		pickedGossip(function(i, o) return i == index or o.orderIndex == index end)
 	end)
 end
