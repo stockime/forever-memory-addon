@@ -29,3 +29,7 @@ To install it by hand, download `armory-addon.zip` from the
 and unpack it into `_classic_beta_/Interface/AddOns/`, so the files end up in
 `Interface/AddOns/armory` (the folder must be called `armory`). Adding or
 renaming files needs a full client restart, not just `/reload`.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
