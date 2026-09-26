@@ -1,8 +1,9 @@
 ## Interface: 16001
 ## Title: armory
-## Notes: Snapshots gear, stats, talents and Legacy perks for wow.stru.ci
+## Notes: Snapshots gear, stats, talents and Legacy perks for wow.stru.ci, and records everything else for the private archive
 ## Author: struci
 ## Version: 0.1.0
-## SavedVariables: armory_db
+## SavedVariables: armory_db, armory_memory
 
+memory.lua
 armory.lua

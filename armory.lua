@@ -2,6 +2,8 @@
 -- The game writes SavedVariables on /reload and logout; a watcher outside the
 -- game uploads the file. Nothing here talks to the network.
 
+local _, ns = ...
+
 local SCHEMA = 1
 local LEGACY_TREES = { 1187, 1188, 1189 } -- professions, adventure, progression (Constants.LegacyConsts)
 local LEGACY_CURRENCY = 4225
@@ -62,6 +64,7 @@ local function equipment()
 				quality = GetInventoryItemQuality("player", slot),
 				durability = { try(GetInventoryItemDurability, slot) },
 				tooltip = tooltip(try(C_TooltipInfo.GetInventoryItem, "player", slot)),
+				firstSeen = ns.firstSeen and ns.firstSeen(link), -- from memory.lua
 			}
 		end
 	end
